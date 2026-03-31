@@ -1,0 +1,13 @@
+{
+  "name": "global-trends-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time global search trends dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["trends", "google", "search", "dashboard", "react"],
+  "author": "",
+  "license": "MIT"
+}
