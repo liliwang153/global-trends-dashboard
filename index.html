@@ -156,6 +156,18 @@
                             </div>
                         </div>
                     )}
+                    <div className="row mt-2">
+                        <div className="col-12">
+                            <a 
+                                href={`https://news.google.com/search?q=${encodeURIComponent(trend.term)}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-info"
+                            >
+                                <i className="bi bi-newspaper"></i> View related news
+                            </a>
+                        </div>
+                    </div>
                 </div>
             );
         }
