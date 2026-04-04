@@ -167,7 +167,7 @@
         function TrendCard({ trend, rank }) {
             const keywordString = categoryImageKeywords[trend.category] || 'trending';
             const firstKeyword = keywordString.split(',')[0];
-            const imageUrl = `https://source.unsplash.com/featured/400x300/?${firstKeyword}`;
+            const imageUrl = `https://loremflickr.com/400/300/${firstKeyword}`;
             
             return (
                 <div className="trend-card">
