@@ -104,7 +104,35 @@
                 padding-top: 15px;
             }
         }
+        
+        /* Google Sign-In 样式 */
+        #google-signin-area {
+            min-height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #user-info {
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
     </style>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="container">
@@ -116,10 +144,183 @@
                 <span class="badge bg-info me-2">React Powered</span>
                 <span class="badge bg-warning">Live Data</span>
             </div>
+            <!-- Google Sign-In Area -->
+            <div id="google-signin-area" class="mt-4"></div>
+            <div id="user-info" class="mt-3" style="display: none;">
+                <div class="d-inline-block bg-white p-3 rounded shadow-sm d-flex align-items-center">
+                    <img id="user-avatar" src="" alt="Avatar" class="user-avatar me-2" style="display: none;">
+                    <div>
+                        <div id="user-name" class="fw-bold"></div>
+                        <small id="user-email" class="text-muted"></small>
+                    </div>
+                    <button id="signout-button" class="btn btn-sm btn-outline-danger ms-3">退出</button>
+                </div>
+            </div>
         </div>
 
         <div id="root"></div>
     </div>
+
+    <!-- Google OAuth JavaScript -->
+    <script>
+        // ============================================
+        // 重要：这里需要替换成你自己的 Google Client ID
+        // 获取方式：
+        // 1. 访问 https://console.cloud.google.com/
+        // 2. 创建项目 → API 和服务 → 凭据
+        // 3. 创建 OAuth 2.0 客户端 ID (Web 应用)
+        // 4. 授权域名：https://global-trends-dashboard.pages.dev
+        // ============================================
+        const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
+        
+        // 检查用户登录状态
+        function checkLoginStatus() {
+            const userData = localStorage.getItem('googleUser');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    showUserInfo(user);
+                } catch (e) {
+                    localStorage.removeItem('googleUser');
+                    initGoogleSignIn();
+                }
+            } else {
+                initGoogleSignIn();
+            }
+        }
+
+        // 初始化 Google Sign-In
+        function initGoogleSignIn() {
+            // 等待 Google 库加载
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+                console.warn('Google Identity Services 库尚未加载，将在 500ms 后重试');
+                setTimeout(initGoogleSignIn, 500);
+                return;
+            }
+
+            // 先清空容器
+            const container = document.getElementById('google-signin-area');
+            container.innerHTML = '';
+            
+            // 隐藏用户信息区域
+            document.getElementById('user-info').style.display = 'none';
+            
+            // 初始化 Google Sign-In
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleCredentialResponse,
+                auto_select: false,
+                cancel_on_tap_outside: false
+            });
+            
+            // 渲染登录按钮
+            google.accounts.id.renderButton(
+                container,
+                {
+                    type: 'standard',
+                    theme: 'outline',
+                    size: 'large',
+                    text: 'signin_with',
+                    shape: 'rectangular',
+                    logo_alignment: 'left',
+                    width: 250
+                }
+            );
+            
+            // 可选：显示一键登录提示（如果之前登录过）
+            google.accounts.id.prompt();
+        }
+
+        // 处理登录响应
+        function handleCredentialResponse(response) {
+            console.log('Google 登录成功，响应:', response);
+            
+            // 解码 JWT token
+            const userInfo = decodeJWT(response.credential);
+            if (!userInfo.sub) {
+                console.error('无法解析用户信息');
+                return;
+            }
+            
+            // 保存用户信息
+            const userData = {
+                id: userInfo.sub,
+                email: userInfo.email,
+                name: userInfo.name,
+                picture: userInfo.picture,
+                token: response.credential,
+                expires_at: userInfo.exp * 1000 // 转换为毫秒
+            };
+            
+            localStorage.setItem('googleUser', JSON.stringify(userData));
+            showUserInfo(userData);
+        }
+
+        // 解码 JWT token
+        function decodeJWT(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (error) {
+                console.error('解码 JWT 失败:', error);
+                return {};
+            }
+        }
+
+        // 显示用户信息
+        function showUserInfo(user) {
+            const container = document.getElementById('google-signin-area');
+            container.innerHTML = '';
+            
+            // 设置用户信息
+            document.getElementById('user-name').textContent = user.name || user.email;
+            document.getElementById('user-email').textContent = user.email;
+            
+            // 设置头像
+            const avatarImg = document.getElementById('user-avatar');
+            if (user.picture) {
+                avatarImg.src = user.picture;
+                avatarImg.style.display = 'block';
+            } else {
+                avatarImg.style.display = 'none';
+            }
+            
+            // 显示用户信息区域
+            document.getElementById('user-info').style.display = 'block';
+        }
+
+        // 退出登录
+        function setupEventListeners() {
+            const signoutBtn = document.getElementById('signout-button');
+            if (signoutBtn) {
+                signoutBtn.addEventListener('click', function() {
+                    localStorage.removeItem('googleUser');
+                    // 如果 Google 库已加载，也调用 Google 的退出
+                    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                        google.accounts.id.disableAutoSelect();
+                    }
+                    initGoogleSignIn();
+                });
+            }
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            setupEventListeners();
+        });
+
+        // 监听存储变化（用于多标签页同步）
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'googleUser') {
+                checkLoginStatus();
+            }
+        });
+    </script>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
